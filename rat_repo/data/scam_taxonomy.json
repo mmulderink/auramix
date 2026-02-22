@@ -1,0 +1,92 @@
+[
+  {
+    "id": "phishing",
+    "name": "Phishing",
+    "description": "Fake login pages, credential harvesting, email spoofing",
+    "tactics": ["urgency", "fake login links", "spoofed sender", "account suspension threats"],
+    "red_flags": ["misspelled URLs", "generic greeting", "urgency language", "asks for password"],
+    "typical_loss": 200,
+    "source": "digital"
+  },
+  {
+    "id": "romance",
+    "name": "Romance Scam",
+    "description": "Fake online relationships, emotional manipulation for money",
+    "tactics": ["love bombing", "fabricated emergencies", "overseas military story", "can't video call"],
+    "red_flags": ["never meets in person", "asks for money early", "too perfect profile", "emergency money requests"],
+    "typical_loss": 500,
+    "source": "digital"
+  },
+  {
+    "id": "irs_gov",
+    "name": "IRS/Government Impersonation",
+    "description": "Government agency impersonation, tax threats, arrest warrants",
+    "tactics": ["arrest threats", "badge numbers", "gift card payment", "spoofed caller ID"],
+    "red_flags": ["IRS doesn't call first", "demands gift cards", "threatens arrest", "asks for SSN"],
+    "typical_loss": 1000,
+    "source": "digital"
+  },
+  {
+    "id": "crypto_investment",
+    "name": "Crypto Investment",
+    "description": "Guaranteed returns, fake trading platforms, rug pulls",
+    "tactics": ["guaranteed returns", "celebrity endorsement", "fake screenshots", "time pressure"],
+    "red_flags": ["guaranteed profits", "pressure to invest now", "unknown platform", "too good to be true returns"],
+    "typical_loss": 2000,
+    "source": "digital"
+  },
+  {
+    "id": "tech_support",
+    "name": "Tech Support",
+    "description": "Fake virus alerts, remote access scams, Microsoft impersonation",
+    "tactics": ["popup warnings", "remote access requests", "fake scan results", "subscription renewal"],
+    "red_flags": ["unsolicited contact", "asks for remote access", "payment in gift cards", "creates fake urgency"],
+    "typical_loss": 300,
+    "source": "digital"
+  },
+  {
+    "id": "real_estate",
+    "name": "Real Estate",
+    "description": "Fake listings, wire fraud, rental scams",
+    "tactics": ["below market price", "wire transfer urgency", "fake landlord", "can't view property"],
+    "red_flags": ["price too low", "wire only payment", "can't tour first", "pressure to act fast"],
+    "typical_loss": 5000,
+    "source": "digital"
+  },
+  {
+    "id": "retail",
+    "name": "Retail/Shopping",
+    "description": "Counterfeit products, fake online stores, delivery scams",
+    "tactics": ["fake tracking links", "too-good deals", "counterfeit brands", "fake reviews"],
+    "red_flags": ["unknown website", "no return policy", "prices way below retail", "poor grammar"],
+    "typical_loss": 150,
+    "source": "digital"
+  },
+  {
+    "id": "job",
+    "name": "Job Scam",
+    "description": "Fake job offers, upfront fee requirements, check cashing",
+    "tactics": ["upfront equipment fees", "check overpayment", "work from home guarantee", "no interview"],
+    "red_flags": ["pay before starting", "too easy to get hired", "vague job description", "personal info upfront"],
+    "typical_loss": 100,
+    "source": "digital"
+  },
+  {
+    "id": "qr_code",
+    "name": "QR Code Scam",
+    "description": "Malicious QR codes on parking meters, restaurants, flyers",
+    "tactics": ["fake payment QR", "overlay on real QR", "redirect to phishing", "fake parking meter"],
+    "red_flags": ["QR sticker over original", "unfamiliar URL after scan", "asks for excessive info", "public QR in odd location"],
+    "typical_loss": 200,
+    "source": "digital"
+  },
+  {
+    "id": "scam_call",
+    "name": "Scam Call",
+    "description": "Phone-based social engineering, SSA/IRS impersonation",
+    "tactics": ["spoofed number", "recorded message", "transfer to agent", "arrest threat"],
+    "red_flags": ["robocall intro", "demands immediate payment", "threatens legal action", "asks for SSN"],
+    "typical_loss": 800,
+    "source": "glasses"
+  }
+]

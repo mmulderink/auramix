@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import BrainPanel, { BrainLog } from '@/components/BrainPanel';
+import RatDJ from '@/components/RatDJ';
 
 const BACKEND = 'http://localhost:8001';
 const CROSSFADE_DURATION = 4000;
@@ -115,6 +116,7 @@ export default function Home() {
   const [playingB, setPlayingB] = useState(false);
   const [volA, setVolA] = useState(1);
   const [volB, setVolB] = useState(0);
+  const [djEvent, setDjEvent] = useState<{ type: string; detail: string; timestamp: number } | null>(null);
 
   const audioA = useRef<HTMLAudioElement | null>(null);
   const audioB = useRef<HTMLAudioElement | null>(null);
@@ -166,6 +168,7 @@ export default function Home() {
   const handleCrossfade = useCallback(() => {
     if (!deckB || isFading) return;
     setIsFading(true);
+    setDjEvent({ type: 'CROSSFADE', detail: `Crossfading from "${deckA?.track.replace('.mp3', '')}" to "${deckB.track.replace('.mp3', '')}" — smooth transition incoming!`, timestamp: Date.now() });
     const steps = 40;
     const stepDuration = CROSSFADE_DURATION / steps;
     let step = 0;
@@ -257,6 +260,7 @@ export default function Home() {
       if (data.suggested_tracks?.length > 0) {
         const top = data.suggested_tracks[0];
         addLog('Actian', 'VectorDB Query completed. Best matches found.', data.suggested_tracks);
+        setDjEvent({ type: 'TRACK_LOADED', detail: `Loading "${top.track.replace('.mp3', '')}" — ${Math.round(top.bpm)} BPM, ${top.key}, ${top.genre}. Vibe prompt was: "${prompt}"`, timestamp: Date.now() });
         if (!deckA) {
           setDeckA(top);
           setVolA(1);
@@ -380,9 +384,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right: Log Panel */}
-        <div className="col-span-4 max-h-[700px]">
-          <BrainPanel incomingLogs={logs} />
+        {/* Right: Rat DJ + Log Panel */}
+        <div className="col-span-4 flex flex-col gap-4 max-h-[700px]">
+          <RatDJ djEvent={djEvent} />
+          <div className="flex-1 overflow-hidden">
+            <BrainPanel incomingLogs={logs} />
+          </div>
         </div>
       </div>
     </main>

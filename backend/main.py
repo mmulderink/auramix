@@ -9,6 +9,9 @@ from pydantic import BaseModel
 import psycopg2
 import cortex
 from cortex import CortexClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="AuraMix Backend", version="1.0.0")
 
@@ -31,6 +34,9 @@ class TransitionRequest(BaseModel):
 
 class IngestRequest(BaseModel):
     directory_path: str
+
+class RatChatRequest(BaseModel):
+    message: str
 
 import ingest
 
@@ -269,6 +275,75 @@ def serve_audio(path: str):
     if not os.path.exists(abs_path) or not abs_path.endswith(".mp3"):
         raise HTTPException(status_code=404, detail="Audio file not found")
     return FileResponse(abs_path, media_type="audio/mpeg")
+
+# ── DJ Rat Chat ─────────────────────────────────────────────
+RAT_SYSTEM = """You are DJ Rat 🐀🎧 — the world's most charismatic, hype, and knowledgeable rat DJ.
+You're the MC and guide of a live DJ mixing session called AuraMix. You help users pick vibes,
+get hyped about transitions, and react to the music with personality and energy.
+Keep responses SHORT (1-2 sentences max), use DJ slang, be fun and energetic.
+You love music, you love mixing, and you LOVE dropping sick transitions. Express emotions naturally —
+get excited when tracks load, hype up crossfades, and vibe with the user. You are a tiny rat wearing huge headphones."""
+
+rat_history = [{"role": "system", "content": RAT_SYSTEM}]
+
+@app.post("/api/rat/chat")
+def rat_chat(req: RatChatRequest):
+    """DJ Rat responds to user messages and DJ events."""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        rat_history.append({"role": "user", "content": req.message})
+        # Keep history manageable
+        if len(rat_history) > 20:
+            rat_history[:] = [rat_history[0]] + rat_history[-18:]
+
+        response = client.chat.completions.create(
+            model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
+            messages=rat_history,
+            max_completion_tokens=500,
+        )
+
+        # Robust response extraction — handle various model response formats
+        msg = ""
+        try:
+            choice = response.choices[0]
+            if choice.message and choice.message.content:
+                msg = choice.message.content.strip()
+        except (IndexError, AttributeError):
+            pass
+
+        # Fallback: try output_text (newer API format)
+        if not msg and hasattr(response, 'output_text') and response.output_text:
+            msg = response.output_text.strip()
+
+        # Debug logging
+        if not msg:
+            print(f"RAT DEBUG: Empty response. Raw: {response}")
+            msg = "Let's gooo! Drop that next track fam! 🐀🔥"
+
+        rat_history.append({"role": "assistant", "content": msg})
+
+        # Determine emotion from keywords
+        emotion = "neutral"
+        lower = msg.lower()
+        if any(w in lower for w in ["🔥", "fire", "sick", "hype", "let's go", "drop", "bang"]):
+            emotion = "excited"
+        elif any(w in lower for w in ["smooth", "chill", "vibin", "mellow", "easy"]):
+            emotion = "happy"
+        elif any(w in lower for w in ["wait", "hmm", "think", "hold"]):
+            emotion = "thinking"
+        elif any(w in lower for w in ["whoa", "wow", "damn", "!"]):
+            emotion = "surprised"
+
+        return {"message": msg, "emotion": emotion}
+
+    except Exception as e:
+        import traceback
+        print(f"Rat Chat Error: {e}")
+        traceback.print_exc()
+        return {"message": "Yo, my headphones glitched for a sec! Try again fam 🐀🔧", "emotion": "concerned"}
+
 
 if __name__ == "__main__":
     import uvicorn

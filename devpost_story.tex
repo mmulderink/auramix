@@ -1,0 +1,160 @@
+\documentclass[11pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{xcolor}
+
+% ── Colors & styling ─────────────────────────────────────────────
+\definecolor{fuchsia}{HTML}{D946EF}
+\definecolor{cyan}{HTML}{06B6D4}
+\definecolor{emerald}{HTML}{10B981}
+\hypersetup{colorlinks=true, linkcolor=fuchsia, urlcolor=cyan}
+\titleformat{\section}{\Large\bfseries\color{fuchsia}}{}{0em}{}
+\titleformat{\subsection}{\large\bfseries\color{cyan}}{}{0em}{}
+
+% ══════════════════════════════════════════════════════════════════
+\title{\textbf{AuraMix} \\ \large A Narrative DJ Application}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ──────────────────────────────────────────────────────────────────
+\section{Inspiration}
+% ──────────────────────────────────────────────────────────────────
+
+Every great DJ set tells a story.
+You start in a smoky jazz lounge, the tempo rises, and suddenly you're tearing through a neon-lit highway at midnight.
+That emotional arc---the \emph{narrative} of a mix---is something experienced DJs craft intuitively, but it has never been something you can simply \emph{describe in words} and let a machine execute.
+
+We asked ourselves: \textbf{what if you could type a cinematic vibe prompt like ``From a rainy jazz club to a high-speed neon chase'' and have an AI build the transition for you?}
+
+Traditional DJ software lets you sort by BPM and key, but it knows nothing about \emph{mood}.
+Streaming algorithms recommend songs you already like, but they cannot sculpt a journey across emotional landscapes.
+We wanted to bridge that gap---combining the semantic understanding of large language models with the mathematical rigor of vector similarity search over real audio features---to create a tool that mixes music the way a filmmaker scores a scene.
+
+% ──────────────────────────────────────────────────────────────────
+\section{What We Learned}
+% ──────────────────────────────────────────────────────────────────
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Audio feature extraction is surprisingly deep.}
+        Using \texttt{librosa} to compute MFCCs (Mel-Frequency Cepstral Coefficients), chroma features, and tempo estimation taught us how much musical information can be compressed into a 512-dimensional vector.
+        Choosing the right number of MFCC coefficients and the right segment duration (we settled on 30\,s) directly impacts how ``vibe-aware'' the embeddings are.
+
+  \item \textbf{Vector databases make similarity search trivial---once your embeddings are good.}
+        Actian VectorAI gave us sub-second cosine-similarity queries across our entire track library.
+        The real challenge was not the database; it was ensuring the vectors we fed it actually captured perceptual similarity rather than just spectral fingerprints.
+
+  \item \textbf{Prompt deconstruction is an under-explored UX pattern.}
+        Wrapping Sphinx AI as a CLI to decompose a free-text vibe prompt into structured attributes (BPM range, musical key trajectory, mood vectors) showed us that LLM reasoning can serve as a ``semantic middleware'' between human intent and numerical queries.
+
+  \item \textbf{Crossfading in the browser is non-trivial.}
+        Managing two \texttt{HTMLAudioElement} instances, smoothly interpolating volumes over a configurable duration, then swapping deck references without audio glitches required careful state management in React with \texttt{useRef} and \texttt{useCallback}.
+
+  \item \textbf{Real-time telemetry transforms a demo into an experience.}
+        Our ``Brain Panel''---a cyberpunk-styled live log feed built with Framer Motion---lets the audience \emph{see} the AI think in real time. Showing Sphinx reasoning steps and Actian distance scores side-by-side turned a backend process into a visual spectacle.
+\end{itemize}
+
+% ──────────────────────────────────────────────────────────────────
+\section{How We Built It}
+% ──────────────────────────────────────────────────────────────────
+
+AuraMix is a full-stack application with four cooperating layers:
+
+\subsection{1. Audio Ingestion Pipeline (\texttt{backend/ingest.py})}
+\begin{enumerate}[leftmargin=1.5em]
+  \item Scan a user-specified directory recursively for \texttt{.mp3} files.
+  \item For each track, load the first 30 seconds with \texttt{librosa} at 22\,050\,Hz.
+  \item Extract metadata:
+        \begin{itemize}
+          \item \textbf{BPM} via \texttt{librosa.beat.beat\_track}.
+          \item \textbf{Musical key} via a chroma-CQT argmax heuristic.
+          \item \textbf{Genre} via a BPM-bracket heuristic (Ballad $<70$, R\&B $<100$, Rock/Pop $<120$, Dance $<140$, EDM $\geq140$).
+        \end{itemize}
+  \item Compute 20 MFCCs, flatten, and pad/truncate to a \textbf{512-D embedding vector}.
+  \item Batch-upsert all vectors and payloads into an \textbf{Actian VectorAI} collection (\texttt{track\_embeddings}) using the \texttt{CortexClient} Python SDK over gRPC with cosine distance.
+  \item Optionally write a local \texttt{fallback\_db.json} for offline/demo use.
+\end{enumerate}
+
+\subsection{2. Intelligence Backend (\texttt{backend/main.py} --- FastAPI)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{POST /api/transition} --- the core endpoint:
+        \begin{enumerate}
+          \item Calls \textbf{Sphinx AI} (via \texttt{subprocess}) to deconstruct the vibe prompt into BPM, key, and three mood vectors.
+          \item Generates a deterministic 512-D query vector seeded by a hash of the prompt and vibe weight.
+          \item Performs a \textbf{top-$k$ cosine search} ($k{=}3$) against Actian VectorAI; falls back to a local Euclidean-distance scan over \texttt{fallback\_db.json} if the database is unreachable.
+          \item Logs the full reasoning chain and results to \textbf{Neon~DB} (PostgreSQL) for history and auditability.
+        \end{enumerate}
+  \item \texttt{POST /api/ingest} --- triggers background ingestion with real-time progress polling via \texttt{GET /api/ingest/status}.
+  \item \texttt{GET /api/history} --- retrieves the last 50 mix events from Neon~DB.
+  \item \texttt{GET /api/audio?path=...} --- streams \texttt{.mp3} files to the browser via \texttt{FileResponse}.
+\end{itemize}
+
+\subsection{3. Frontend (\texttt{Next.js + Tailwind + Framer Motion})}
+\begin{itemize}[leftmargin=1.5em]
+  \item A dual-deck DJ interface with animated spinning vinyl, per-deck play/pause, real-time volume bars, and an equalizer visualizer.
+  \item A \textbf{vibe prompt bar} with a Dark $\leftrightarrow$ Energy slider (0--100) and an \textsc{Execute} button.
+  \item A smooth \textbf{crossfader}: 40-step linear interpolation over 4\,s, swapping audio element references at the end so the new track becomes Deck~A.
+  \item A \textbf{Music Folder} input with a \textsc{Link \& Ingest} button and a live progress bar.
+  \item A \textbf{Neon~DB Mix History} panel showing past prompts and matched tracks.
+\end{itemize}
+
+\subsection{4. The Brain Panel (\texttt{BrainPanel.tsx})}
+A cyberpunk-themed, auto-scrolling telemetry feed. Each log entry is color-coded by source:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textcolor{cyan}{\textbf{Cyan}} --- Sphinx AI reasoning steps.
+  \item \textcolor{emerald}{\textbf{Emerald}} --- Actian VectorAI distance results.
+  \item \textcolor{fuchsia}{\textbf{Fuchsia}} --- System events (ingestion, errors).
+\end{itemize}
+Entries animate in with Framer Motion springs and include expandable JSON metadata.
+
+\subsection{Infrastructure}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Actian VectorAI} runs as a Docker container (\texttt{williamimoh/actian-vectorai-db:1.0b}) exposing gRPC on port 50051.
+  \item \textbf{Neon~DB} provides serverless PostgreSQL for the \texttt{mix\_history} table.
+  \item \textbf{Sphinx AI} is invoked as a local CLI binary wrapped with Python's \texttt{subprocess}.
+\end{itemize}
+
+% ──────────────────────────────────────────────────────────────────
+\section{Challenges We Faced}
+% ──────────────────────────────────────────────────────────────────
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Bridging text semantics and audio embeddings.}
+        Our vibe prompts are natural language, but our track embeddings are raw MFCC features.
+        Ideally we would use a cross-modal model (e.g., MS-CLAP) to project text and audio into a shared latent space.
+        Under hackathon time constraints we used a deterministic hash-seeded random vector as a proxy, which still produces consistent, prompt-sensitive results---but closing this gap is our top priority for future work.
+
+  \item \textbf{Actian VectorAI beta SDK quirks.}
+        The \texttt{CortexClient} beta does not return full payloads in search results, requiring a second \texttt{client.get()} call per result.
+        We also encountered duplicate-ID collisions when re-ingesting, which we solved by dropping and recreating the collection on every ingest and using sequential integer IDs.
+
+  \item \textbf{Browser autoplay restrictions.}
+        Modern browsers block \texttt{audio.play()} unless it originates from a user gesture.
+        We had to restructure our crossfade logic so that the initial play always chains from a click event, and subsequent automated fades ride on that same user-activation context.
+
+  \item \textbf{State management during crossfades.}
+        Swapping two \texttt{HTMLAudioElement} refs mid-fade while simultaneously updating React state for volumes, play/pause icons, and deck labels required precise coordination between \texttt{useRef}, \texttt{useState}, and \texttt{setInterval}---a single missed cleanup could leave ghost audio playing.
+
+  \item \textbf{Embedding dimensionality and quality trade-offs.}
+        We experimented with different numbers of MFCCs (13 vs.\ 20) and different flatten/pad strategies.
+        Too few coefficients lost timbral nuance; too many introduced noise from silent padding.
+        We settled on 20 MFCCs truncated/padded to 512 dimensions as the best balance for our track library size.
+
+  \item \textbf{Fallback resilience under demo conditions.}
+        Hackathon Wi-Fi is unpredictable.
+        We built a full offline fallback path: if Actian is unreachable, the backend computes manual Euclidean distances over a local \texttt{fallback\_db.json}, ensuring the demo never hard-fails regardless of network conditions.
+\end{enumerate}
+
+% ──────────────────────────────────────────────────────────────────
+
+\end{document}

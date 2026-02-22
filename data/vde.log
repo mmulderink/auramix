@@ -1,0 +1,8 @@
+[2026-02-22 09:48:54.026] [vde] [info] Data store configure CACHE_SIZE_MB succeeded
+[2026-02-22 09:48:54.027] [vde] [info] Data store configure INI succeeded (/data/datastore.ini)
+[2026-02-22 09:48:54.144] [vde] [info] Data store initialization succeeded
+[2026-02-22 09:48:54.144] [vde] [info] VDE Engine initializing with work_dir: /data
+[2026-02-22 09:48:54.146] [vde] [info] IndexManager and StorageManager created
+[2026-02-22 09:49:38.520] [vde] [info] VDE Engine shutting down...
+[2026-02-22 09:49:38.520] [vde] [info] VDE Engine destroyed
+[2026-02-22 09:49:38.534] [vde] [info] Data store deinitialization succeeded

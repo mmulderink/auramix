@@ -25,7 +25,7 @@ app.add_middleware(
 
 # Neon DB Connection string from environment variable
 # Uses standard PostgreSQL connection string as requested
-NEON_DB_URL = os.getenv("NEON_DB_URL", "postgresql://user:password@ep-cool-darkness-123456.us-east-2.aws.neon.tech/neondb?sslmode=require")
+NEON_DB_URL = os.getenv("DATABASE_URL", os.getenv("NEON_DB_URL", "postgresql://user:password@ep-cool-darkness-123456.us-east-2.aws.neon.tech/neondb?sslmode=require"))
 ACTIAN_HOST = os.getenv("ACTIAN_HOST", "localhost:50051")
 
 class TransitionRequest(BaseModel):
